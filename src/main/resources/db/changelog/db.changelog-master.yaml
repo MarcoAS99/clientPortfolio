@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - include:
+      file: classpath:/db/changelog/changes/001-create-tables.sql
+  - include:
+      file: classpath:/db/changelog/changes/002-insert-portfolio-models.sql
+  - include:
+      file: classpath:/db/changelog/changes/003-insert-sample-goals.sql
+  - include:
+      file: classpath:/db/changelog/changes/004-insert-sample-holdings.sql
+  - include:
+      file: classpath:/db/changelog/changes/005-insert-sample-clients.sql
