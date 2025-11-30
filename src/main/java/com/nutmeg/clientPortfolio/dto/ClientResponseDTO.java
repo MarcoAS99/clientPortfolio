@@ -5,7 +5,7 @@ import java.util.UUID;
 
 public record ClientResponseDTO(
         UUID id,
-        String clientName,
+        String name,
         String goalName,
         LocalDate goalDate,
         Integer riskLevel,

@@ -7,20 +7,18 @@ import com.nutmeg.clientPortfolio.model.Client;
 import com.nutmeg.clientPortfolio.model.Holding;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface ClientMapper {
-    ClientMapper INSTANCE = Mappers.getMapper( ClientMapper.class );
 
-    @Mapping(target = "name", source = "clientName")
+    @Mapping(target = "name", source = "name")
     @Mapping(target = "goal", ignore = true)
     @Mapping(target = "holding", ignore = true)
     @Mapping(target = "portfolioModel", ignore = true)
     @Mapping(target = "id", ignore = true)
     Client toClient(ClientRequestDTO dto);
 
-    @Mapping(target = "clientName", source = "name")
+    @Mapping(target = "name", source = "name")
     @Mapping(target = "goalName", source = "goal.name")
     @Mapping(target = "goalDate", source = "goal.date")
     @Mapping(target = "riskLevel", source = "portfolioModel.riskLevel")

@@ -18,6 +18,8 @@ public class Client {
     @GeneratedValue
     private UUID id;
 
+    private String name;
+
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "goal_id")
     private Goal goal;
