@@ -2,25 +2,25 @@ package com.nutmeg.clientPortfolio.api;
 
 import com.nutmeg.clientPortfolio.dto.ClientRequestDTO;
 import com.nutmeg.clientPortfolio.dto.ClientResponseDTO;
-import com.nutmeg.clientPortfolio.dto.HoldingDTO;
+import com.nutmeg.clientPortfolio.dto.DepositRequestDTO;
 import com.nutmeg.clientPortfolio.service.ClientService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
-@ControllerAdvice("api/clients")
+@RequestMapping("api/clients")
 public class ClientApi {
     private final ClientService clientService;
 
     @GetMapping("/{name}")
-    public ResponseEntity<ClientResponseDTO> getClient(@RequestParam String name) {
-        return ResponseEntity.status(HttpStatus.OK).body(
+    public ResponseEntity<List<ClientResponseDTO>> getClient(@PathVariable String name) {
+        return ResponseEntity.ok(
           clientService.get(name)
         );
     }
@@ -32,10 +32,10 @@ public class ClientApi {
         );
     }
 
-    @PostMapping("/{id}/deposit")
-    public ResponseEntity<ClientResponseDTO> deposit(@RequestParam UUID clientId, @RequestParam BigDecimal amount) {
+    @PostMapping("/{clientId}/deposit")
+    public ResponseEntity<ClientResponseDTO> deposit(@PathVariable UUID clientId, @RequestBody DepositRequestDTO request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
-                clientService.deposit(clientId, amount)
+                clientService.deposit(clientId, request)
         );
     }
 }
