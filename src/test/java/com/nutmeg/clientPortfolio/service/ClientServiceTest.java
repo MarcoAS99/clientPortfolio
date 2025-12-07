@@ -2,7 +2,10 @@ package com.nutmeg.clientPortfolio.service;
 
 import com.nutmeg.clientPortfolio.dto.ClientRequestDTO;
 import com.nutmeg.clientPortfolio.dto.ClientResponseDTO;
+import com.nutmeg.clientPortfolio.dto.DepositRequestDTO;
 import com.nutmeg.clientPortfolio.dto.HoldingDTO;
+import com.nutmeg.clientPortfolio.expection.ClientNotFound;
+import com.nutmeg.clientPortfolio.expection.PortfolioModelNotFound;
 import com.nutmeg.clientPortfolio.mapper.ClientMapper;
 import com.nutmeg.clientPortfolio.model.Client;
 import com.nutmeg.clientPortfolio.model.Goal;
@@ -19,6 +22,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -55,37 +60,37 @@ class ClientServiceTest {
                 null
         );
 
-        Mockito.when(clientRepo.findByName(clientName)).thenReturn(Optional.of(mockClient));
+        Mockito.when(clientRepo.findAllByName(clientName)).thenReturn(List.of(mockClient));
         Mockito.when(clientMapper.toResponseDTO(mockClient)).thenReturn(mockResponseDTO);
 
         // Act
-        ClientResponseDTO result = clientService.get(clientName);
+        List<ClientResponseDTO> result = clientService.get(clientName);
 
         // Assert
         assertNotNull(result);
-        assertEquals(mockResponseDTO, result);
-        assertEquals(clientName, result.name());
-        assertEquals(id, result.id());
+        assertEquals(List.of(mockResponseDTO), result);
+        assertEquals(clientName, result.getFirst().name());
+        assertEquals(id, result.getFirst().id());
 
         // Verify
-        Mockito.verify(clientRepo).findByName(clientName);
+        Mockito.verify(clientRepo).findAllByName(clientName);
         Mockito.verify(clientMapper).toResponseDTO(mockClient);
     }
 
     @Test
-    void getClientByName_clientNotFound_throwsException() {
+    void getClientByName_clientNotFoundException() {
         // Arrange
         String clientName = "John Doe";
-        Mockito.when(clientRepo.findByName(clientName)).thenReturn(Optional.empty());
+        Mockito.when(clientRepo.findAllByName(clientName)).thenReturn(Collections.emptyList());
 
         // Act & Assertion
-        RuntimeException exception = assertThrows(RuntimeException.class,
+        ClientNotFound exception = assertThrows(ClientNotFound.class,
                 () -> clientService.get(clientName));
 
         assertEquals("Client does not exist.", exception.getMessage());
 
         // Verify
-        Mockito.verify(clientRepo).findByName(clientName);
+        Mockito.verify(clientRepo).findAllByName(clientName);
         Mockito.verifyNoInteractions(clientMapper);
     }
 
@@ -160,7 +165,7 @@ class ClientServiceTest {
 
         Mockito.when(portfolioModelRepo.findById(clientRequestDTO.riskModel())).thenReturn(Optional.empty());
 
-        RuntimeException exception = assertThrows(RuntimeException.class,
+        PortfolioModelNotFound exception = assertThrows(PortfolioModelNotFound.class,
                 () -> clientService.save(clientRequestDTO));
 
         assertEquals("Invalid risk level.", exception.getMessage());
@@ -168,6 +173,86 @@ class ClientServiceTest {
         Mockito.verify(portfolioModelRepo).findById(clientRequestDTO.riskModel());
         Mockito.verifyNoInteractions(clientMapper);
         Mockito.verifyNoInteractions(clientRepo);
+    }
+
+    @Test
+    void deposit_returnClientResponse() {
+        UUID clientId = UUID.randomUUID();
+        DepositRequestDTO requestDTO = new DepositRequestDTO(BigDecimal.ONE);
+
+        PortfolioModel portfolioModel = PortfolioModel.builder()
+                .riskLevel(1)
+                .bondWeight(BigDecimal.valueOf(0.20))
+                .equityWeight(BigDecimal.valueOf(0.80))
+                .build();
+
+        Holding holding = Holding.builder()
+                .equityAmount(BigDecimal.ZERO)
+                .bondAmount(BigDecimal.ZERO)
+                .build();
+
+        Goal goal = Goal.builder()
+                .date(LocalDate.now())
+                .name("Goal")
+                .build();
+
+        Client client = Client.builder()
+                .id(clientId)
+                .name("John")
+                .portfolioModel(portfolioModel)
+                .holding(holding)
+                .goal(goal)
+                .build();
+
+        Mockito.when(clientRepo.findById(clientId)).thenReturn(Optional.of(client));
+
+        holding.setEquityAmount(
+                holding.getEquityAmount()
+                        .add(portfolioModel.getEquityWeight().multiply(requestDTO.amount()))
+        );
+        holding.setBondAmount(
+                holding.getBondAmount()
+                        .add(portfolioModel.getBondWeight().multiply(requestDTO.amount()))
+        );
+
+        client.setHolding(holding);
+
+        HoldingDTO holdingDTO = new HoldingDTO(
+                client.getHolding().getEquityAmount(),
+                client.getHolding().getBondAmount()
+                );
+
+        ClientResponseDTO clientResponseDTO = new ClientResponseDTO(
+                clientId,
+                client.getName(),
+                client.getGoal().getName(),
+                client.getGoal().getDate(),
+                portfolioModel.getRiskLevel(),
+                holdingDTO
+        );
+
+        Mockito.when(clientMapper.toResponseDTO(client)).thenReturn(clientResponseDTO);
+
+        ClientResponseDTO result = clientService.deposit(clientId,requestDTO);
+
+        assertNotNull(result);
+        assertEquals(result,clientResponseDTO);
+
+        Mockito.verify(clientRepo).findById(clientId);
+        Mockito.verify(clientMapper).toResponseDTO(client);
+        Mockito.verify(clientRepo).save(client);
+    }
+
+    @Test
+    void deposit_amountNotValid() {
+        DepositRequestDTO requestDTO = new DepositRequestDTO(BigDecimal.valueOf(-1));
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> clientService.deposit(UUID.randomUUID(),requestDTO));
+
+        assertEquals("Deposit amount must be positive.", exception.getMessage());
+        Mockito.verifyNoInteractions(clientRepo);
+        Mockito.verifyNoInteractions(clientMapper);
     }
 
 }
